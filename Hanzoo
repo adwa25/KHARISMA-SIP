@@ -1,0 +1,144 @@
+import os
+from zipfile import ZipFile
+import shutil
+
+# Buat ulang struktur folder
+project_root = "/mnt/data/sukunatopup_final_upload"
+templates_dir = os.path.join(project_root, "templates")
+static_dir = os.path.join(project_root, "static")
+
+os.makedirs(templates_dir, exist_ok=True)
+os.makedirs(static_dir, exist_ok=True)
+
+# Gambar diamond dan membership
+diamond_img_src = "/mnt/data/download.jpeg"
+membership_img_src = "/mnt/data/images.jpeg"
+diamond_img_target = os.path.join(static_dir, "free_fire_diamond.png")
+membership_img_target = os.path.join(static_dir, "free_fire_membership.png")
+
+shutil.copyfile(diamond_img_src, diamond_img_target)
+shutil.copyfile(membership_img_src, membership_img_target)
+
+# File app.py
+app_py_code = '''from flask import Flask, render_template
+
+app = Flask(__name__)
+
+def format_rupiah(angka):
+    return f"Rp {angka:,.0f}".replace(",", ".")
+
+def parse_price(price_str):
+    try:
+        clean_str = price_str.replace("Rp ", "").replace(".", "").replace(",", ".").replace(" (Harga Reseller)", "").strip()
+        return float(clean_str)
+    except ValueError:
+        return 0.0
+
+data_top_up_ff_diamond = [
+    {"nominal": "5 Berlian", "harga": "Rp 940 (Harga Reseller)"},
+    {"nominal": "10 Berlian", "harga": "Rp 2.003 (Harga Reseller)"},
+    {"nominal": "12 Berlian", "harga": "Rp 2.130 (Harga Reseller)"},
+    {"nominal": "1000 Berlian", "harga": "Rp 125.375 (Harga Reseller)"}
+]
+
+data_top_up_ff_member = [
+    {"nominal": "Member Mingguan", "harga": "Rp 30.000 (Harga Reseller)"},
+    {"nominal": "Member Bulanan (30 Hari)", "harga": "Rp 90.000 (Harga Reseller)"}
+]
+
+@app.route('/')
+def index():
+    processed_diamond_data = [{
+        'nominal': item['nominal'],
+        'harga_raw_value': parse_price(item['harga']),
+        'harga': format_rupiah(parse_price(item['harga']))
+    } for item in data_top_up_ff_diamond]
+
+    sorted_diamond_data = sorted(
+        processed_diamond_data,
+        key=lambda x: (x['harga_raw_value'], int(''.join(filter(str.isdigit, x['nominal'])) or 0))
+    )
+
+    processed_member_data = [{
+        'nominal': item['nominal'],
+        'harga_raw_value': parse_price(item['harga']),
+        'harga': format_rupiah(parse_price(item['harga']))
+    } for item in data_top_up_ff_member]
+
+    sorted_member_data = sorted(processed_member_data, key=lambda x: x['harga_raw_value'])
+
+    return render_template('index.html',
+                           diamond_prices=sorted_diamond_data,
+                           member_prices=sorted_member_data,
+                           diamond_image_url='/static/free_fire_diamond.png',
+                           member_image_url='/static/free_fire_membership.png')
+
+if __name__ == '__main__':
+    app.run(debug=True)
+'''
+
+# File index.html
+index_html_code = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Top Up Free Fire</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background-color: #f0f2f5; color: #333; }
+        .header { background-color: #e62b48; color: white; padding: 20px 0; text-align: center; }
+        .header h1 { margin: 0; font-size: 2.5em; }
+        .container { max-width: 1200px; margin: auto; padding: 20px; display: flex; flex-wrap: wrap; gap: 25px; justify-content: center; }
+        .category-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); flex: 1; min-width: 300px; box-sizing: border-box; }
+        .category-card h2 { text-align: center; color: #e62b48; font-size: 1.8em; border-bottom: 2px solid #e62b48; padding-bottom: 10px; margin-bottom: 20px; }
+        .game-logo { text-align: center; margin-bottom: 20px; }
+        .game-logo img { max-width: 180px; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        ul { list-style: none; padding: 0; }
+        li { background: #fdfdfd; margin-bottom: 12px; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #e0e0e0; }
+        .nominal { font-weight: bold; color: #555; font-size: 1.1em; }
+        .price { color: #007bff; font-weight: bold; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+    <div class="header"><h1>Top Up Garena Free Fire</h1></div>
+    <div class="container">
+        <div class="category-card">
+            <h2>💎 Diamond Top Up</h2>
+            <div class="game-logo"><img src="{{ diamond_image_url }}" alt="Free Fire Diamonds"></div>
+            <ul>
+                {% for item in diamond_prices %}
+                <li><span class="nominal">{{ item.nominal }}</span><span class="price">{{ item.harga }}</span></li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="category-card">
+            <h2>📅 Member Bulanan</h2>
+            <div class="game-logo"><img src="{{ member_image_url }}" alt="Free Fire Membership"></div>
+            <ul>
+                {% for item in member_prices %}
+                <li><span class="nominal">{{ item.nominal }}</span><span class="price">{{ item.harga }}</span></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
+'''
+
+# Simpan file
+with open(os.path.join(project_root, "app.py"), "w") as f:
+    f.write(app_py_code)
+
+with open(os.path.join(templates_dir, "index.html"), "w") as f:
+    f.write(index_html_code)
+
+# Buat ZIP
+zip_path = "/mnt/data/sukunatopup_final_complete.zip"
+with ZipFile(zip_path, "w") as zipf:
+    for folder, _, files in os.walk(project_root):
+        for file in files:
+            file_path = os.path.join(folder, file)
+            zipf.write(file_path, arcname=os.path.relpath(file_path, project_root))
+
+zip_path
+
